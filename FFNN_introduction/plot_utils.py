@@ -205,10 +205,14 @@ def calculate_ncols(plot_width, legend: Legend, max_width_factor: float = 0.85) 
         The number of columns for the legend.
     """
     item_widths = get_legend_item_widths(legend)
+    if not item_widths:
+        return 'auto'
+     
+    print(item_widths)
     available_width = int(plot_width * max_width_factor - 2 * (legend.padding + legend.margin))# Subtract a margin from the plot width for padding
     ncols = 1
     current_width = 0
-    max_width = max(*item_widths, legend.label_width)
+    max_width = max(*item_widths, legend.label_width) 
     for _ in range(len(item_widths)):
         add_width = max_width + legend.glyph_width + legend.spacing + legend.label_standoff
         if (current_width + add_width) < available_width:

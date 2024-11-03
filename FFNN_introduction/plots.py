@@ -186,11 +186,12 @@ def plot_x_y_z(
         width: int = 1000, 
         height: int = 800,
         contour_colors = Sunset10,
-        use_latex_style: bool = False
+        use_latex_style: bool = False,
+        title: str = "Model Predictions with Ground Truth Contours"
     ) -> Column:
     # Set up Bokeh figure
     p = figure(
-        title="Model Predictions with Ground Truth Contours",
+        title=title,
         x_axis_label="x",
         y_axis_label="y",
         width=width,
@@ -221,12 +222,14 @@ def plot_x_y_z(
     # Add color bar for contour
     p.add_layout(contour_color_bar, 'right')
 
-    # Plot model predictions as scatter points with color mapping
-    all_preds = np.concatenate([pred for pred in predictions.values()])
-    min_pred = np.min(all_preds)
-    max_pred = np.max(all_preds)
+    
 
     if predictions is not None and predictions:
+        # Plot model predictions as scatter points with color mapping
+        all_preds = np.concatenate([pred for pred in predictions.values()])
+        min_pred = np.min(all_preds)
+        max_pred = np.max(all_preds)
+
         pred_color_mapper = LinearColorMapper(palette="Plasma256", low=min_pred, high=max_pred)
         for model_name, preds in predictions.items():
             pred_source = ColumnDataSource(data = {'x': xs, 'y': ys, 'z': preds})
