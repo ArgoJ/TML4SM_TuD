@@ -1,9 +1,10 @@
 # %%
-import os
+import os, sys
 import tensorflow as tf
 
-from data_import import load_data, load_invariants
-from analytic_potential import get_invariants
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.data_import import load_data, load_invariants
+from src.analytic_potential import get_invariants
 
 
 def correct_invariants_test(file_path: os.PathLike, test_file_path: os.PathLike, eps: float = 1e-6) ->  bool | tuple:
@@ -39,11 +40,12 @@ def main():
     biaxial_test = correct_invariants_test(biaxial_path, biaxial_inv_path)
     pure_shear_test = correct_invariants_test(pure_shear_path, pure_shear_inv_path)
     uniaxial_test = correct_invariants_test(uniaxial_path, uniaxial_inv_path)
-    print(f'Biaxial: {biaxial_test[0]}') 
-    print(f'Pure Shear: {pure_shear_test[0]}')
-    print(f'Uniaxial: {uniaxial_test[0]}')
 
-    
+    print('='*50)
+    print('Invariants:')
+    print(f'\tBiaxial: {biaxial_test[0]}') 
+    print(f'\tPure Shear: {pure_shear_test[0]}')
+    print(f'\tUniaxial: {uniaxial_test[0]}')
 
 if __name__ == '__main__':
     main()

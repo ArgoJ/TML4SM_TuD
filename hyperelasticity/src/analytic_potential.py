@@ -1,12 +1,5 @@
 # %%
-import os
 import tensorflow as tf
-import numpy as np
-
-from pprint import pprint
-
-from data_import import load_data, load_invariants
-
 
 def get_invariants(F: tf.Tensor) -> tf.Tensor:
     G_ti = tf.constant([[4, 0, 0], [0, 0.5, 0], [0, 0, 0.5]], dtype=tf.float32)
@@ -38,13 +31,13 @@ def get_pinola_kirchhoff_stress(F: tf.Tensor) -> tf.Tensor:
     del_W__del_F = g.gradient(W, F)
     return del_W__del_F
 
-
-def main():
+# %%
+def main() -> None:
     F = tf.eye(3, 3)
     invs = get_invariants(F)
     W = get_hyperelastic_potential(F)
     P= get_pinola_kirchhoff_stress(F)
-    pprint(invs)
+    print(invs)
     print(W)
     print(P)
 
