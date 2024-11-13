@@ -1,10 +1,15 @@
 # %%
 import tensorflow as tf
 
+
+def get_C(F: tf.Tensor) -> tf.Tensor:
+    return tf.linalg.matmul(tf.transpose(F, perm=[0, 2, 1]), F, transpose_b=False)
+
+
 def get_invariants(F: tf.Tensor) -> tf.Tensor:
     # G_ti is the same for all samples
     G_ti = tf.constant([[4, 0, 0], [0, 0.5, 0], [0, 0, 0.5]], dtype=tf.float32)
-    C = tf.linalg.matmul(tf.transpose(F, perm=[0, 2, 1]), F, transpose_b=False)
+    C = get_C(F)
     i3 = tf.linalg.det(C)
     Cof_C = i3[:, None, None] * tf.linalg.inv(C)
     i1 = tf.linalg.trace(C)
@@ -12,7 +17,6 @@ def get_invariants(F: tf.Tensor) -> tf.Tensor:
     i4 = tf.linalg.trace(tf.linalg.matmul(C, G_ti))
     i5 = tf.linalg.trace(tf.linalg.matmul(Cof_C, G_ti))
     return tf.stack((i1, j, i4, i5), axis=1)
-
 
 
 def get_hyperelastic_potential(F: tf.Tensor) -> tf.Tensor:
