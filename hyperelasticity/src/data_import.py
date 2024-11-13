@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from .analytic_potential import get_C
+
 
 # %%
 def load_df(path: os.PathLike) -> pd.DataFrame:
@@ -32,15 +34,23 @@ def load_data(path: os.PathLike, batch_size: int = 32) -> tuple[tf.Tensor, tf.Te
 
 def load_invariants(path: os.PathLike) -> tf.Tensor:
     df = load_df(path)
+    data = df.to_numpy(dtype=np.float32)
+    return tf.convert_to_tensor(data, dtype=tf.float32)
 
-    invariants = []
-    for _, row in df.iterrows():
-        i1 = tf.constant(row.iloc[0], dtype=tf.float32)
-        j = tf.constant(row.iloc[1], dtype=tf.float32)
-        i4 = tf.constant(row.iloc[2], dtype=tf.float32)
-        i5 = tf.constant(row.iloc[3], dtype=tf.float32)
-        invariants.append(tf.stack((i1, j, i4, i5)))
-    return tf.stack(invariants)
+
+def load_naive_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
+    F, P, _ = load_data(data_path)
+    C = get_C(F)
+    features = tf.stack([
+        C[:, 0, 0], 
+        C[:, 1, 1],
+        C[:, 2, 2],
+        C[:, 0, 1],
+        C[:, 0, 2],
+        C[:, 1, 2],
+    ], axis=1)
+    labels = tf.reshape(P, (-1, 9))
+    return features, labels
 
 
 
