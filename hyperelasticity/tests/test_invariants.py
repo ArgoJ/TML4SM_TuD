@@ -8,16 +8,20 @@ from src.analytic_potential import get_invariants
 
 
 def correct_invariants_test(file_path: os.PathLike, test_file_path: os.PathLike, eps: float = 1e-6) ->  bool | tuple:
-    data = load_data(file_path)
-    test_data = load_invariants(test_file_path)
+    invs_test = load_invariants(test_file_path)
+
+    F, *_ = load_data(file_path)
+    invs = get_invariants(F)
+
+    diff = tf.abs(invs - invs_test)
+    eps = tf.constant(eps, dtype=tf.float32)
+    faulty_mask = tf.reduce_any(diff > eps, axis=-1)
 
     faulty_tensors = []
-
-    for (F, _, _), invs_test in zip(data, test_data):
-        invs = get_invariants(F)
-
-        if tf.reduce_any(tf.abs(invs - invs_test) > tf.constant(eps, dtype=tf.float32)):
-            faulty_tensors.append((invs, invs_test))
+    if tf.reduce_any(faulty_mask):
+        faulty_indices = tf.where(faulty_mask)[:, 0]  # Indices of faulty samples
+        for idx in faulty_indices:
+            faulty_tensors.append((invs[idx].numpy(), invs_test[idx].numpy()))
 
     return not faulty_tensors, faulty_tensors
 

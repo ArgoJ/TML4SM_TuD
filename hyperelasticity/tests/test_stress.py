@@ -7,15 +7,20 @@ from src.data_import import load_data
 from src.analytic_potential import get_pinola_kirchhoff_stress
 
 
-def correct_stress_test(file_path: os.PathLike, eps: float = 1e-3) ->  bool | tuple:
-    data = load_data(file_path)
+def correct_stress_test(file_path: os.PathLike, eps: float = 1e-4) ->  bool | tuple:
+    F, P_test, _ = load_data(file_path)
+    P = get_pinola_kirchhoff_stress(F)
+
     eps = tf.constant(eps, dtype=tf.float32)
+    diff = tf.abs(P - P_test)  # Shape: (batch_size, 3, 3)
+    faulty_mask = tf.reduce_any(diff > eps, axis=[1, 2])
 
     faulty_P = []
-    for F, P_test, _ in data:
-        P = get_pinola_kirchhoff_stress(F)
-        if tf.reduce_any(tf.abs(P - P_test) > eps):
-            faulty_P.append((P, P_test))
+    if tf.reduce_any(faulty_mask):
+        faulty_indices = tf.where(faulty_mask)[:, 0]  # Indices of faulty samples
+        for idx in faulty_indices:
+            faulty_P.append((P[idx].numpy(), P_test[idx].numpy()))
+
     return not faulty_P, faulty_P
 
 

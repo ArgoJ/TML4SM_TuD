@@ -8,14 +8,19 @@ from src.analytic_potential import get_hyperelastic_potential
 
 
 def correct_strain_energy_density(file_path: os.PathLike, eps: float = 1e-3) ->  bool | tuple:
-    data = load_data(file_path)
+    F, _, W_test = load_data(file_path)
     eps = tf.constant(eps, dtype=tf.float32)
 
+    W = get_hyperelastic_potential(F)
+    diff = tf.abs(W - W_test)
+    faulty_mask = diff > eps
+
     faulty_W = []
-    for F, _, W_test in data:
-        W = get_hyperelastic_potential(F)
-        if tf.abs(W - W_test) > eps:
-            faulty_W.append((W, W_test))
+    if tf.reduce_any(faulty_mask):
+        faulty_indices = tf.where(faulty_mask)[:, 0]  # Indices of faulty samples
+        for idx in faulty_indices:
+            faulty_W.append((W[idx].numpy(), W_test[idx].numpy()))
+
     return not faulty_W, faulty_W
 
 
