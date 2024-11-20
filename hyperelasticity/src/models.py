@@ -3,20 +3,21 @@ import tensorflow as tf
 
 from keras import layers, Model, Input, Sequential, constraints
 from typing import Literal
+from abc import ABC
+
+from .analytic_potential import get_invariants
 
 
-# %%   
-class CustomFFNN(Model):
+# %%
+class Layer_Sequence(layers.Layer):
     def __init__(
             self, 
-            input_size: int,
             hidden_sizes: list[int], 
             activations: list[Literal['linear', 'softplus', 'tanh', 'relu', 'sigmoid']] | None = None,
             non_negs: list[bool] | None = None,
-            use_derivative: bool = False,
+            **kwargs
         ) -> None:
-        super(CustomFFNN, self).__init__()
-        self.use_derivative = use_derivative
+        super(Layer_Sequence, self).__init__(**kwargs)
 
         # Default activations and check length
         if activations is None:
@@ -32,47 +33,125 @@ class CustomFFNN(Model):
         assert len(non_negs) == len(hidden_sizes), (
             f'Size missmatch between hidden_size ({len(hidden_sizes)}) and non_neg ({len(non_negs)})!'
         )
-
-        # Define the model
-        self.model = Sequential()
-        self.model.add(Input(shape=(input_size,)))
+        self.ls = []
         for num_neurons, activation, non_neg in zip(hidden_sizes, activations, non_negs):
-            self.model.add(layers.Dense(
+            self.ls.append(layers.Dense(
                 num_neurons, 
                 activation, 
                 kernel_constraint=constraints.NonNeg if non_neg else None,
                 bias_constraint=constraints.NonNeg if non_neg else None,
             ))
 
-            
-    def call(self, x) -> tf.Tensor:
-        if self.use_derivative:
-            return self._compute_gradients(x)
-        return self.model(x)
-    
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        x = inputs
+        for layer in self.ls:
+            x = layer(x)
+        return x
 
-    def _compute_gradients(self, inputs) -> tf.Tensor:
-        with tf.GradientTape() as tape:
-            tape.watch(inputs)
-            outputs = self.model(inputs)
-        gradients = tape.gradient(outputs, inputs)
-        return tf.concat([outputs, gradients], axis=-1)
+
+# %%
+class ICNN_Sequence(Layer_Sequence):
+    def __init__(
+            self, 
+            hidden_sizes: list[int], 
+            activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
+            **kwargs
+        ) -> None:
+        possible_activations = ['linear', 'softplus', 'relu']
+
+        # Default activations
+        if activations is None:
+            activations = ['relu' for _ in range(len(hidden_sizes) - 1)]
+            activations.append('linear')
+        assert all(activation in possible_activations for activation in activations), (
+            f'Activations {activations} cannot be used for ICNN!'
+            f'Only {possible_activations} are allowed.'
+        )
+
+        non_negs = [False] + [True for _ in range(len(hidden_sizes)-1)]
+        super(ICNN_Sequence, self).__init__(hidden_sizes, activations, non_negs, **kwargs)
+
+    
+# %%
+class Invariants_Layer(layers.Layer):
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        invariants = get_invariants(inputs)
+        j = invariants[:, 1:2] 
+        return tf.concat([invariants, -j], axis=1)
 
 
 
 # %%   
-class ICNN(CustomFFNN):
+class InputGradFFNN(Model):
     def __init__(
             self, 
-            input_size: int,
+            use_derivative: bool = False,
+        ) -> None:
+        super(InputGradFFNN, self).__init__()
+        self.use_derivative = use_derivative
+            
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        if self.use_derivative:
+            return self._compute_gradients(inputs)
+        return self._compute_output(inputs)
+
+    def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
+        raise NotImplementedError('_compute_output function need to be implemented!')
+    
+    def _compute_gradients(self, inputs) -> tf.Tensor:
+        with tf.GradientTape() as tape:
+            tape.watch(inputs)
+            outputs = self._compute_output(inputs)
+        gradients = tape.gradient(outputs, inputs)
+        return gradients
+    
+
+# %%
+class CustomFFNN(InputGradFFNN):
+    def __init__(
+            self, 
+            hidden_sizes: list[int], 
+            activations: list[Literal['linear', 'softplus', 'tanh', 'relu', 'sigmoid']] | None = None,
+            non_negs: list[bool] | None = None,
+            use_derivative: bool = False,
+        ) -> None:
+        super(CustomFFNN, self).__init__(use_derivative)
+        self.ls = Layer_Sequence(hidden_sizes, activations, non_negs)
+
+    def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
+        return self.ls(inputs)
+
+
+# %%   
+class ICNN(InputGradFFNN):
+    def __init__(
+            self, 
             hidden_sizes: list[int], 
             activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
             use_derivative: bool = False,
         ) -> None:
-        possible_activations = ['linear', 'softplus', 'relu']
-        assert all(activation in possible_activations for activation in activations), (
-            f'Activation {activations} cannot be used for ICNN!'
-        )
+        super(ICNN, self).__init__(use_derivative)
+        self.ls = ICNN_Sequence(hidden_sizes, activations)
 
-        non_negs = [False] + [True for _ in range(len(hidden_sizes)-1)]
-        super(ICNN, self).__init__(input_size, hidden_sizes, activations, non_negs, use_derivative)
+    def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
+        return self.ls(inputs)
+
+
+# %%   
+class InvariantsICNN(InputGradFFNN):
+    def __init__(
+            self,
+            hidden_sizes: list[int], 
+            activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
+        ) -> None:
+
+        super(InvariantsICNN, self).__init__(use_derivative=True)
+        non_negs = [True for _ in range(len(hidden_sizes))]
+
+        self.invariants_layer = Invariants_Layer()
+        self.ls = Layer_Sequence(hidden_sizes, activations, non_negs)
+
+    def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
+        invariants = self.invariants_layer(inputs)
+        out = self.ls(invariants)
+        return out

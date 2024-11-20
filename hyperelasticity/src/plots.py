@@ -2,50 +2,50 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from matplotlib.colors import ListedColormap
+
+from .cps_colors import CPS_COLORS
 
 
 def plot_predictions(
-        features: np.ndarray, 
-        labels: np.ndarray, 
-        predictions: np.ndarray, 
-        which_features: list | None = None,
-        which_labels: list | None = None,
-        figsize: tuple[int, int] = (12, 16),
-        feature_label = 'C',
-        label_label = 'P',
+        labels_dict: dict[str, np.ndarray], 
+        predictions_dict: dict[str, np.ndarray], 
+        figsize: tuple[int, int] = (10, 10),
+        x_label: str = 't',
+        y_label: str = 'P',
+        colors: list[tuple] = CPS_COLORS,
     ) -> plt.Figure:
-    if which_features is None:
-        which_features = [f for f in range(features.shape[1])]
-    if which_labels is None:
-        which_labels = [l for l in range(labels.shape[1])]
 
     fig, axs = plt.subplots(
-        len(which_labels), 
-        len(which_features), 
+        3, 
+        3, 
         sharex='col', 
         sharey='row', 
         figsize=figsize
     )
 
-    # iterate over features
-    for ax1_idx, i_C in enumerate(which_features):
+    for (name, labels), color in zip(labels_dict.items(), colors):
+        if name not in predictions_dict.keys():
+            raise KeyError(f'key {name} not in prediction dict!')
+        
+        predictions = predictions_dict[name]
 
-        # iterate over labels
-        for ax2_idx, i_P in enumerate(which_labels):
+        # iterate over label values
+        for idx, (label_i, preds_i) in enumerate(zip(labels.T, predictions.T)):
+            ax1_idx = idx // 3
+            ax2_idx = idx % 3
             ax: plt.Axes = axs[ax2_idx, ax1_idx]
-            line, = ax.plot(features[:, i_C], labels[:, i_P], lw=1, label='Training')
-            line, = ax.plot(features[:, i_C], predictions[:, i_P], lw=1, label='Prediction')
-            true_P_idx = (i_P+1) % 3
-            true_C_idx = i_C + 1
-            ax.set_title(f'{feature_label} ({true_C_idx}, {true_C_idx}), {label_label} ({true_P_idx}, {true_P_idx})')
+            true_line, = ax.plot(label_i, '.', lw=2, color=color, markevery=10, label=f'{name} Ground Truth')
+            pred_line, = ax.plot(preds_i, '-', lw=2, color=color, label=f'{name} Prediction')
+            ax.set_title(f'${y_label}_{{{ax1_idx+1},{ax2_idx+1}}}$')
 
-            if i_C == 2 and i_P == 0:
+            if ax1_idx == 2 and ax2_idx == 0:
                 ax.legend()
             
-            if ax2_idx == (len(which_labels) - 1):
-                ax.set_xlabel(feature_label)
+            if ax2_idx == 2:
+                ax.set_xlabel(f'${x_label} [s]$')
             if ax1_idx == 0:
-                ax.set_ylabel(label_label)
+                ax.set_ylabel(f'${y_label} [N]$')
     return fig
 
 
@@ -67,5 +67,39 @@ def plot_loss(
     ax.set_yscale('log')
     ax.set_ylabel('Loss')
     ax.set_xlabel('Epoch')
+
+    return fig
+
+
+
+def plot_heatmap(
+        score_values: np.ndarray,
+        cbar_label: str, 
+        vmin=None,
+        vmax=None,
+        title=None,
+        **subplot_kwargs
+    ) -> plt.Figure:
+
+    fig, ax = plt.subplots(**subplot_kwargs)
+    cax = ax.matshow(score_values, cmap='coolwarm', vmin=vmin, vmax=vmax)
+    plt.colorbar(cax, ax=ax, label=cbar_label)
+    ax.set_title('$P_{i,j} [N]$')
+    ax.set_ylabel('$i$')
+    ax.set_xlabel('$j$')
+    ax.grid(False)
+
+    ax.set_xticks(range(score_values.shape[1])) 
+    ax.set_xticklabels([f'${i + 1}$' for i in range(score_values.shape[1])])
+    ax.xaxis.set_ticks_position('bottom')
+    # ax.tick_params(axis='x', which='major', length=2)
+
+    ax.set_yticks(range(score_values.shape[0]))
+    ax.set_yticklabels([f'${i + 1}$' for i in range(score_values.shape[0])])
+    ax.yaxis.set_ticks_position('left')
+    # ax.tick_params(axis='y', which='major', length=2)
+
+    if title is not None:
+        fig.suptitle(title)
 
     return fig

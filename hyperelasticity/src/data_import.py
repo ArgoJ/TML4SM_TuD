@@ -11,7 +11,7 @@ from .analytic_potential import get_C
 def load_df(path: os.PathLike) -> pd.DataFrame:
     return pd.read_csv(path, sep=' ', header=None)
 
-def load_data(path: os.PathLike, batch_size: int = 32) -> tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+def load_data(path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     df = load_df(path)
 
     F_batch = []
@@ -49,6 +49,13 @@ def load_naive_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
         C[:, 0, 2],
         C[:, 1, 2],
     ], axis=1)
+    labels = tf.reshape(P, (-1, 9))
+    return features, labels
+
+
+def load_paml_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
+    F, P, W = load_data(data_path)
+    features = F
     labels = tf.reshape(P, (-1, 9))
     return features, labels
 
