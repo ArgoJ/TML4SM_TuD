@@ -7,7 +7,7 @@ from matplotlib.colors import ListedColormap
 from .cps_colors import CPS_COLORS
 
 
-def plot_predictions(
+def plot_stress_predictions(
         labels_dict: dict[str, np.ndarray], 
         predictions_dict: dict[str, np.ndarray], 
         figsize: tuple[int, int] = (10, 10),
@@ -20,7 +20,7 @@ def plot_predictions(
         3, 
         3, 
         sharex='col', 
-        sharey='row', 
+        # sharey='row', 
         figsize=figsize
     )
 
@@ -37,16 +37,44 @@ def plot_predictions(
             ax: plt.Axes = axs[ax2_idx, ax1_idx]
             true_line, = ax.plot(label_i, '.', lw=2, color=color, markevery=10, label=f'{name} Ground Truth')
             pred_line, = ax.plot(preds_i, '-', lw=2, color=color, label=f'{name} Prediction')
-            ax.set_title(f'${y_label}_{{{ax1_idx+1},{ax2_idx+1}}}$')
+            # ax.set_title(f'${y_label}_{{{ax1_idx+1},{ax2_idx+1}}}$')
 
             if ax1_idx == 2 and ax2_idx == 0:
                 ax.legend()
             
             if ax2_idx == 2:
-                ax.set_xlabel(f'${x_label} [s]$')
-            if ax1_idx == 0:
-                ax.set_ylabel(f'${y_label} [N]$')
-    return fig
+                ax.set_xlabel(f'${x_label} \, [s]$')
+
+            ax.set_ylabel(f'${y_label}_{{{ax1_idx+1},{ax2_idx+1}}} \, [N]$')
+        
+    fig.tight_layout()
+    plt.show()
+
+
+def plot_energy_prediction(
+        labels_dict: dict[str, np.ndarray], 
+        predictions_dict: dict[str, np.ndarray], 
+        figsize: tuple[int, int] = (5, 7),
+        x_label: str = 't',
+        y_label: str = 'W',
+        colors: list[tuple] = CPS_COLORS,
+    ) -> plt.Figure:
+
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(1, 1, 1)
+
+    for (name, labels), color in zip(labels_dict.items(), colors):
+        if name not in predictions_dict.keys():
+            raise KeyError(f'key {name} not in prediction dict!')
+        
+        line, = ax.plot(predictions_dict[name], lw=1, label='Training')
+
+    ax.set_yscale('log')
+    ax.set_ylabel('Loss')
+
+    fig.tight_layout()
+    plt.show()
+
 
 
 
@@ -68,7 +96,8 @@ def plot_loss(
     ax.set_ylabel('Loss')
     ax.set_xlabel('Epoch')
 
-    return fig
+    fig.tight_layout()
+    plt.show()
 
 
 
@@ -102,4 +131,5 @@ def plot_heatmap(
     if title is not None:
         fig.suptitle(title)
 
-    return fig
+    fig.tight_layout()
+    plt.show()

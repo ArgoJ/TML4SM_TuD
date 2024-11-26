@@ -38,8 +38,7 @@ class Layer_Sequence(layers.Layer):
             self.ls.append(layers.Dense(
                 num_neurons, 
                 activation, 
-                kernel_constraint=constraints.NonNeg if non_neg else None,
-                bias_constraint=constraints.NonNeg if non_neg else None,
+                kernel_constraint=constraints.NonNeg if non_neg else None
             ))
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
@@ -86,11 +85,15 @@ class InputGradFFNN(Model):
     def __init__(
             self, 
             use_derivative: bool = False,
+            use_output_and_derivative: bool = False
         ) -> None:
         super(InputGradFFNN, self).__init__()
-        self.use_derivative = use_derivative
+        self.use_output_and_derivative = use_output_and_derivative
+        self.use_derivative = False if self.use_output_and_derivative else use_derivative
             
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        if self.use_output_and_derivative:
+            return self._compute_output_and_gradient(inputs)
         if self.use_derivative:
             return self._compute_gradients(inputs)
         return self._compute_output(inputs)
@@ -105,6 +108,13 @@ class InputGradFFNN(Model):
         gradients = tape.gradient(outputs, inputs)
         return gradients
     
+    def _compute_output_and_gradient(self, inputs) -> tuple[tf.Tensor, tf.Tensor]:
+        with tf.GradientTape() as tape:
+            tape.watch(inputs)
+            outputs = self._compute_output(inputs)
+        gradients = tape.gradient(outputs, inputs)
+        return outputs, gradients
+    
 
 # %%
 class CustomFFNN(InputGradFFNN):
@@ -113,9 +123,9 @@ class CustomFFNN(InputGradFFNN):
             hidden_sizes: list[int], 
             activations: list[Literal['linear', 'softplus', 'tanh', 'relu', 'sigmoid']] | None = None,
             non_negs: list[bool] | None = None,
-            use_derivative: bool = False,
+            use_derivative: bool = False
         ) -> None:
-        super(CustomFFNN, self).__init__(use_derivative)
+        super(CustomFFNN, self).__init__(use_derivative=use_derivative)
         self.ls = Layer_Sequence(hidden_sizes, activations, non_negs)
 
     def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
@@ -142,10 +152,12 @@ class InvariantsICNN(InputGradFFNN):
     def __init__(
             self,
             hidden_sizes: list[int], 
+            use_derivative: bool = True,
+            use_output_and_derivative: bool = False,
             activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
         ) -> None:
 
-        super(InvariantsICNN, self).__init__(use_derivative=True)
+        super(InvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
         non_negs = [True for _ in range(len(hidden_sizes))]
 
         self.invariants_layer = Invariants_Layer()
