@@ -10,9 +10,7 @@ from .cps_colors import CPS_COLORS
 def plot_stress_predictions(
         labels_dict: dict[str, np.ndarray], 
         predictions_dict: dict[str, np.ndarray], 
-        figsize: tuple[int, int] = (10, 10),
-        x_label: str = 't',
-        y_label: str = 'P',
+        figsize: tuple[int, int] = (10, 8),
         colors: list[tuple] = CPS_COLORS,
     ) -> plt.Figure:
 
@@ -43,9 +41,9 @@ def plot_stress_predictions(
                 ax.legend()
             
             if ax2_idx == 2:
-                ax.set_xlabel(f'${x_label} \, [s]$')
+                ax.set_xlabel(f'$t \, [s]$')
 
-            ax.set_ylabel(f'${y_label}_{{{ax1_idx+1},{ax2_idx+1}}} \, [N]$')
+            ax.set_ylabel(f'$P_{{{ax1_idx+1},{ax2_idx+1}}} \, [N]$')
         
     fig.tight_layout()
     plt.show()
@@ -54,9 +52,7 @@ def plot_stress_predictions(
 def plot_energy_prediction(
         labels_dict: dict[str, np.ndarray], 
         predictions_dict: dict[str, np.ndarray], 
-        figsize: tuple[int, int] = (5, 7),
-        x_label: str = 't',
-        y_label: str = 'W',
+        figsize: tuple[int, int] = (5, 3),
         colors: list[tuple] = CPS_COLORS,
     ) -> plt.Figure:
 
@@ -67,10 +63,11 @@ def plot_energy_prediction(
         if name not in predictions_dict.keys():
             raise KeyError(f'key {name} not in prediction dict!')
         
-        line, = ax.plot(predictions_dict[name], lw=1, label='Training')
+        line, = ax.plot(predictions_dict[name], lw=1, label=labels, color=color)
 
-    ax.set_yscale('log')
-    ax.set_ylabel('Loss')
+    ax.set_ylabel(f'$W \, [Nm]$')
+    ax.set_xlabel(f'$t \, [s]$')
+    ax.legend()
 
     fig.tight_layout()
     plt.show()

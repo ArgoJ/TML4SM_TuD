@@ -7,33 +7,49 @@ from .models import InputGradFFNN
 
 def predict_multi_cases(
         model: InputGradFFNN, 
-        input_label_tup: dict[str, tuple[tf.Tensor, tf.Tensor]],
-        label_is_stress: bool = True,
+        FPW_tup: dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]],
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
-    labels = {}
-    predictions = {}
-    for name, (case_inputs, case_labels) in input_label_tup.items():
-        if label_is_stress:
-            labels[name] = case_labels.numpy().reshape((-1, 9))
-            predictions[name] = model.predict(case_inputs).reshape((-1, 9))
-        else:
-            labels[name] = case_labels
-            predictions[name] = model.predict(case_inputs)
+    set_back = False
 
-    return labels, predictions 
+    if not model.use_output_and_derivative:
+        model.use_output_and_derivative = True
+        model.compile()
+        set_back = True
+
+    W_labels = {}
+    W_predictions = {}
+
+    P_labels = {}
+    P_predictions = {}
+    for name, (case_F, case_P, case_W) in FPW_tup.items():
+        W_labels[name] = case_W.numpy()
+        P_labels[name] = case_P.numpy().reshape((-1, 9))
+         
+        W_pred, P_pred = model.predict(case_F)
+        
+        W_predictions[name] = W_pred
+        P_predictions[name] = P_pred.reshape((-1, 9))
+
+    if set_back:
+        model.use_output_and_derivative = False
+        model.compile()
+    return P_labels, W_labels, P_predictions, W_predictions
 
 
 
 def predict_identity_F(model: InputGradFFNN):
     F_eye = tf.eye(3, 3, batch_shape=[1], dtype=tf.float32)
 
+    set_back = False
+
     if not model.use_output_and_derivative:
         model.use_output_and_derivative = True
         model.compile()
+        set_back = True
 
-        W_pred_eye, P_pred_eye,  = model.predict(F_eye)
-        W_pred_eye = model.predict(F_eye)
+    W_pred_eye, P_pred_eye  = model.predict(F_eye)
 
+    if set_back:
         model.use_output_and_derivative = False
         model.compile()
 

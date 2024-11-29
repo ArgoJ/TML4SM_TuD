@@ -94,7 +94,7 @@ class InputGradFFNN(Model):
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
         if self.use_output_and_derivative:
             return self._compute_output_and_gradient(inputs)
-        if self.use_derivative:
+        if self.use_derivative and not self.use_output_and_derivative:
             return self._compute_gradients(inputs)
         return self._compute_output(inputs)
 
