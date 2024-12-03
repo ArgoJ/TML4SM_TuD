@@ -3,9 +3,25 @@ import numpy as np
 
 
 from .models import InputGradFFNN
+from .analytic_potential import get_C, get_C_features
 
 
-def predict_multi_cases(
+def predict_multi_cases_naive(
+        model: InputGradFFNN, 
+        FPW_tup: dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]],
+) -> tuple[dict, dict]:                   
+    P_labels = {}
+    P_predictions = {}
+    for name, (case_F, case_P, case_W) in FPW_tup.items():
+        P_labels[name] = case_P.numpy().reshape((-1, 9))
+         
+        features = get_C_features(case_F)
+        P_pred = model.predict(case_F)
+        P_predictions[name] = P_pred.reshape((-1, 9))
+    return P_labels, P_predictions
+
+
+def predict_multi_cases_PANN(
         model: InputGradFFNN, 
         FPW_tup: dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]],
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
@@ -37,7 +53,7 @@ def predict_multi_cases(
 
 
 
-def predict_identity_F(model: InputGradFFNN):
+def predict_identity_F_PANN(model: InputGradFFNN):
     F_eye = tf.eye(3, 3, batch_shape=[1], dtype=tf.float32)
 
     set_back = False

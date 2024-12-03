@@ -6,6 +6,18 @@ def get_C(F: tf.Tensor) -> tf.Tensor:
     return tf.linalg.matmul(tf.transpose(F, perm=[0, 2, 1]), F, transpose_b=False)
 
 
+def get_C_features(F: tf.Tensor) -> tf.Tensor:
+    C = get_C(F)
+    return tf.stack([
+        C[:, 0, 0], 
+        C[:, 1, 1],
+        C[:, 2, 2],
+        C[:, 0, 1],
+        C[:, 0, 2],
+        C[:, 1, 2],
+    ], axis=1)
+
+
 def get_invariants(F: tf.Tensor) -> tf.Tensor:
     # G_ti is the same for all samples
     G_ti = tf.constant([[4, 0, 0], [0, 0.5, 0], [0, 0, 0.5]], dtype=tf.float32)

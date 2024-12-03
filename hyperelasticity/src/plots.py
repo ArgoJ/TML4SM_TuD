@@ -3,13 +3,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from matplotlib.colors import ListedColormap
+from itertools import zip_longest
 
 from .cps_colors import CPS_COLORS
 
 
 def plot_stress_predictions(
         labels_dict: dict[str, np.ndarray], 
-        predictions_dict: dict[str, np.ndarray], 
+        predictions_dict: dict[str, np.ndarray] | None = None, 
         figsize: tuple[int, int] = (10, 8),
         colors: list[tuple] = CPS_COLORS,
     ) -> plt.Figure:
@@ -22,20 +23,24 @@ def plot_stress_predictions(
         figsize=figsize
     )
 
+    lines = []
+    names = []
+
     for (name, labels), color in zip(labels_dict.items(), colors):
-        if name not in predictions_dict.keys():
+        if predictions_dict is not None and name not in predictions_dict.keys():
             raise KeyError(f'key {name} not in prediction dict!')
         
-        predictions = predictions_dict[name]
+        predictions = predictions_dict[name] if predictions_dict is not None else np.array([])
 
         # iterate over label values
-        for idx, (label_i, preds_i) in enumerate(zip(labels.T, predictions.T)):
+        for idx, (label_i, preds_i) in enumerate(zip_longest(labels.T, predictions.T, fillvalue=None)):
             ax1_idx = idx // 3
             ax2_idx = idx % 3
             ax: plt.Axes = axs[ax2_idx, ax1_idx]
-            true_line, = ax.plot(label_i, '.', lw=2, color=color, markevery=10, label=f'{name} Ground Truth')
-            pred_line, = ax.plot(preds_i, '-', lw=2, color=color, label=f'{name} Prediction')
-            # ax.set_title(f'${y_label}_{{{ax1_idx+1},{ax2_idx+1}}}$')
+            true_line, = ax.plot(label_i, '.', lw=2, color=color, markevery=10)
+            
+            if preds_i is not None:
+                pred_line, = ax.plot(preds_i, '-', lw=2, color=color)
 
             if ax1_idx == 2 and ax2_idx == 0:
                 ax.legend()
@@ -43,8 +48,17 @@ def plot_stress_predictions(
             if ax2_idx == 2:
                 ax.set_xlabel(f'$t \, [s]$')
 
-            ax.set_ylabel(f'$P_{{{ax1_idx+1},{ax2_idx+1}}} \, [N]$')
-        
+            ax.set_ylabel(f'$P_{{{ax1_idx+1},{ax2_idx+1}}} \, [MP]$')
+
+        lines.append(true_line)
+        names.append(f'{name} Ground Truth')
+        if predictions_dict is not None:
+            lines.append(pred_line)
+            names.append(f'{name} Prediction')
+            
+
+
+    fig.legend(lines, names, ncol=4, labelspacing=0.5, bbox_to_anchor=(0.5, 0.), loc='upper center', frameon=False)
     fig.tight_layout()
     plt.show()
 
@@ -59,16 +73,24 @@ def plot_energy_prediction(
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(1, 1, 1)
 
+    lines = []
+    names = []
+
     for (name, labels), color in zip(labels_dict.items(), colors):
         if name not in predictions_dict.keys():
             raise KeyError(f'key {name} not in prediction dict!')
         
-        line, = ax.plot(predictions_dict[name], lw=1, label=labels, color=color)
+        true_line, = ax.plot(labels, '.', lw=2, color=color, markevery=10)
+        pred_line, = ax.plot(predictions_dict[name], '-', lw=2, color=color)
 
-    ax.set_ylabel(f'$W \, [Nm]$')
-    ax.set_xlabel(f'$t \, [s]$')
+        lines.extend([true_line, pred_line])
+        names.extend([f'{name} Ground Truth', f'{name} Prediction'])
+
+    ax.set_ylabel(r'$W \, [\frac{N}{mm^2}]$')
+    ax.set_xlabel(r'$t \, [s]$')
     ax.legend()
 
+    fig.legend(lines, names, ncol=2, labelspacing=0.5, bbox_to_anchor=(0.5, 0.), loc='upper center', frameon=False)
     fig.tight_layout()
     plt.show()
 

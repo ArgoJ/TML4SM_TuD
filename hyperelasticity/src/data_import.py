@@ -4,19 +4,17 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from .analytic_potential import get_C
+from .analytic_potential import get_pinola_kirchhoff_stress, get_hyperelastic_potential, get_C_features
 
 
 # %%
 def load_df(path: os.PathLike) -> pd.DataFrame:
     return pd.read_csv(path, sep=' ', header=None)
 
+
 def load_data(path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     df = load_df(path)
-
-    F_batch = []
-    P_batch = []
-    W_batch = []
+    F_batch, P_batch, W_batch = [], [], []
     for _, row in df.iterrows():
         F = tf.constant(row.iloc[:9].to_numpy().reshape((3, 3)), dtype=tf.float32)
         P = tf.constant(row.iloc[9:-1].to_numpy().reshape((3, 3)), dtype=tf.float32)
@@ -28,9 +26,21 @@ def load_data(path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     F_batch = tf.stack(F_batch)  # Shape: (batch, 3, 3)
     P_batch = tf.stack(P_batch)  # Shape: (batch, 3, 3)
     W_batch = tf.stack(W_batch)  # Shape: (batch, 1)
-
     return F_batch, P_batch, W_batch
 
+
+def load_concentric(path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    df = load_df(path)
+    F_batch = []
+    for _, F in df.iterrows():
+        F = tf.constant(F.to_numpy().reshape((3, 3)), dtype=tf.float32)
+        F_batch.append(F)
+
+    F_batch = tf.stack(F_batch)  # Shape: (batch, 3, 3)
+    P_batch = get_pinola_kirchhoff_stress(F_batch)
+    W_batch = get_hyperelastic_potential(F_batch)
+    return F_batch, P_batch, W_batch
+    
 
 def load_invariants(path: os.PathLike) -> tf.Tensor:
     df = load_df(path)
@@ -40,15 +50,7 @@ def load_invariants(path: os.PathLike) -> tf.Tensor:
 
 def load_naive_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
     F, P, _ = load_data(data_path)
-    C = get_C(F)
-    features = tf.stack([
-        C[:, 0, 0], 
-        C[:, 1, 1],
-        C[:, 2, 2],
-        C[:, 0, 1],
-        C[:, 0, 2],
-        C[:, 1, 2],
-    ], axis=1)
+    features = get_C_features(F)
     labels = tf.reshape(P, (-1, 9))
     return features, labels
 
@@ -59,6 +61,26 @@ def load_paml_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
     labels = tf.reshape(P, (-1, 9))
     return features, labels
 
+
+def load_train_test_concentric(
+        path: os.PathLike, 
+        test_size: float = 0.2
+) -> tuple[list[tuple[tf.Tensor, tf.Tensor, tf.Tensor]], list[tuple[tf.Tensor, tf.Tensor, tf.Tensor]]]:
+    files = os.listdir(path)
+    indices = np.random.permutation(np.arange(len(files)))
+
+    split_index = int(len(indices) * test_size)
+    test_indices, train_indices = np.split(indices, [split_index]) 
+
+    train_cases = []
+    for idx in train_indices:
+        train_cases.append(load_concentric(os.path.join(path, files[idx])))
+
+    test_cases = []
+    for idx in test_indices:
+        test_cases.append(load_concentric(os.path.join(path, files[idx])))
+    
+    return train_cases, test_cases 
 
 
 # %%
