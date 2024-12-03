@@ -16,7 +16,7 @@ def predict_multi_cases_naive(
         P_labels[name] = case_P.numpy().reshape((-1, 9))
          
         features = get_C_features(case_F)
-        P_pred = model.predict(case_F)
+        P_pred = model.predict(features, verbose=0)
         P_predictions[name] = P_pred.reshape((-1, 9))
     return P_labels, P_predictions
 
@@ -41,7 +41,7 @@ def predict_multi_cases_PANN(
         W_labels[name] = case_W.numpy()
         P_labels[name] = case_P.numpy().reshape((-1, 9))
          
-        W_pred, P_pred = model.predict(case_F)
+        W_pred, P_pred = model.predict(case_F, verbose=0)
         
         W_predictions[name] = W_pred
         P_predictions[name] = P_pred.reshape((-1, 9))

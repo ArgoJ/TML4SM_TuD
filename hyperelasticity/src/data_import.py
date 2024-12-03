@@ -65,20 +65,20 @@ def load_paml_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
 def load_train_test_concentric(
         path: os.PathLike, 
         test_size: float = 0.2
-) -> tuple[list[tuple[tf.Tensor, tf.Tensor, tf.Tensor]], list[tuple[tf.Tensor, tf.Tensor, tf.Tensor]]]:
+) -> tuple[dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]], dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]]]:
     files = os.listdir(path)
     indices = np.random.permutation(np.arange(len(files)))
 
     split_index = int(len(indices) * test_size)
     test_indices, train_indices = np.split(indices, [split_index]) 
 
-    train_cases = []
+    train_cases = {}
     for idx in train_indices:
-        train_cases.append(load_concentric(os.path.join(path, files[idx])))
+        train_cases[idx] = load_concentric(os.path.join(path, files[idx]))
 
-    test_cases = []
+    test_cases = {}
     for idx in test_indices:
-        test_cases.append(load_concentric(os.path.join(path, files[idx])))
+        test_cases[idx] = load_concentric(os.path.join(path, files[idx]))
     
     return train_cases, test_cases 
 
