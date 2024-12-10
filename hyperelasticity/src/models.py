@@ -5,8 +5,11 @@ from keras import layers, Model, Input, Sequential, constraints
 from typing import Literal
 from abc import ABC
 
-from .analytic_potential import get_transversely_isotropic_invariants, get_cubic_anisotropic_invariants
-
+from .analytic_potential import (
+    get_transversely_isotropic_invariants, 
+    get_cubic_anisotropic_invariants,
+    get_polyconvex_inputs
+)
 
 # %%
 class Layer_Sequence(layers.Layer):
@@ -85,7 +88,12 @@ class Cubic_Anisotropic_Invariants_Layer(layers.Layer):
         invariants = get_cubic_anisotropic_invariants(inputs)
         j = invariants[:, 2:3] 
         return tf.concat([invariants, -j], axis=1)
+    
 
+# %%
+class Deformation_Layer(layers.Layer):
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        return get_polyconvex_inputs(inputs)
 
 
 # %%   
@@ -202,7 +210,7 @@ class CubicAnisoInvariantsICNN(InputGradFFNN):
 
 
 # %%   
-class DeformationNN(InputGradFFNN):
+class DeformationICNN(InputGradFFNN):
     # 
     def __init__(
             self,
@@ -213,12 +221,11 @@ class DeformationNN(InputGradFFNN):
         ) -> None:
 
         super(CubicAnisoInvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
-        non_negs = [True for _ in range(len(hidden_sizes))]
 
-        self.invariants_layer = Cubic_Anisotropic_Invariants_Layer()
-        self.ls = Layer_Sequence(hidden_sizes, activations, non_negs)
+        self.polyconvex_inputs = Cubic_Anisotropic_Invariants_Layer()
+        self.ls = ICNN_Sequence(hidden_sizes, activations)
 
     def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
-        invariants = self.invariants_layer(inputs)
-        out = self.ls(invariants)
+        polyconvex_inputs = self.polyconvex_inputs(inputs)
+        out = self.ls(polyconvex_inputs)
         return out
