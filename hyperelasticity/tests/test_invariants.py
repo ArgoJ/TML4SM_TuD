@@ -4,14 +4,14 @@ import tensorflow as tf
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.data_import import load_data, load_invariants
-from src.analytic_potential import get_invariants
+from src.analytic_potential import get_transversely_isotropic_invariants
 
 
 def correct_invariants_test(file_path: os.PathLike, test_file_path: os.PathLike, eps: float = 1e-6) ->  bool | tuple:
     invs_test = load_invariants(test_file_path)
 
     F, *_ = load_data(file_path)
-    invs = get_invariants(F)
+    invs = get_transversely_isotropic_invariants(F)
 
     diff = tf.abs(invs - invs_test)
     eps = tf.constant(eps, dtype=tf.float32)

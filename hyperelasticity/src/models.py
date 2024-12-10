@@ -5,7 +5,7 @@ from keras import layers, Model, Input, Sequential, constraints
 from typing import Literal
 from abc import ABC
 
-from .analytic_potential import get_invariants
+from .analytic_potential import get_transversely_isotropic_invariants, get_cubic_anisotropic_invariants
 
 
 # %%
@@ -72,10 +72,18 @@ class ICNN_Sequence(Layer_Sequence):
 
     
 # %%
-class Invariants_Layer(layers.Layer):
+class Transversely_Isotropic_Invariants_Layer(layers.Layer):
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
-        invariants = get_invariants(inputs)
+        invariants = get_transversely_isotropic_invariants(inputs)
         j = invariants[:, 1:2] 
+        return tf.concat([invariants, -j], axis=1)
+    
+
+# %%
+class Cubic_Anisotropic_Invariants_Layer(layers.Layer):
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        invariants = get_cubic_anisotropic_invariants(inputs)
+        j = invariants[:, 2:3] 
         return tf.concat([invariants, -j], axis=1)
 
 
@@ -148,7 +156,7 @@ class ICNN(InputGradFFNN):
 
 
 # %%   
-class InvariantsICNN(InputGradFFNN):
+class TransIsoInvariantsICNN(InputGradFFNN):
     def __init__(
             self,
             hidden_sizes: list[int], 
@@ -157,10 +165,57 @@ class InvariantsICNN(InputGradFFNN):
             activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
         ) -> None:
 
-        super(InvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
+        super(TransIsoInvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
         non_negs = [True for _ in range(len(hidden_sizes))]
 
-        self.invariants_layer = Invariants_Layer()
+        self.invariants_layer = Transversely_Isotropic_Invariants_Layer()
+        self.ls = Layer_Sequence(hidden_sizes, activations, non_negs)
+
+    def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
+        invariants = self.invariants_layer(inputs)
+        out = self.ls(invariants)
+        return out
+    
+
+
+# %%   
+class CubicAnisoInvariantsICNN(InputGradFFNN):
+    def __init__(
+            self,
+            hidden_sizes: list[int], 
+            use_derivative: bool = True,
+            use_output_and_derivative: bool = False,
+            activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
+        ) -> None:
+
+        super(CubicAnisoInvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
+        non_negs = [True for _ in range(len(hidden_sizes))]
+
+        self.invariants_layer = Cubic_Anisotropic_Invariants_Layer()
+        self.ls = Layer_Sequence(hidden_sizes, activations, non_negs)
+
+    def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
+        invariants = self.invariants_layer(inputs)
+        out = self.ls(invariants)
+        return out
+    
+
+
+# %%   
+class DeformationNN(InputGradFFNN):
+    # 
+    def __init__(
+            self,
+            hidden_sizes: list[int], 
+            use_derivative: bool = True,
+            use_output_and_derivative: bool = False,
+            activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
+        ) -> None:
+
+        super(CubicAnisoInvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
+        non_negs = [True for _ in range(len(hidden_sizes))]
+
+        self.invariants_layer = Cubic_Anisotropic_Invariants_Layer()
         self.ls = Layer_Sequence(hidden_sizes, activations, non_negs)
 
     def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:

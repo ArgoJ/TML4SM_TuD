@@ -18,7 +18,7 @@ def get_C_features(F: tf.Tensor) -> tf.Tensor:
     ], axis=1)
 
 
-def get_invariants(F: tf.Tensor) -> tf.Tensor:
+def get_transversely_isotropic_invariants(F: tf.Tensor) -> tf.Tensor:
     # G_ti is the same for all samples
     G_ti = tf.constant([[4, 0, 0], [0, 0.5, 0], [0, 0, 0.5]], dtype=tf.float32)
     C = get_C(F)
@@ -31,8 +31,23 @@ def get_invariants(F: tf.Tensor) -> tf.Tensor:
     return tf.stack((i1, j, i4, i5), axis=1)
 
 
+def get_cubic_anisotropic_invariants(F: tf.Tensor) -> tf.Tensor:
+    C = get_C(F)
+    i3 = tf.linalg.det(C)
+    Cof_C = i3[:, None, None] * tf.linalg.inv(C)
+    i1 = tf.linalg.trace(C)
+    i2 = tf.linalg.trace(Cof_C)
+    j = tf.linalg.det(F)
+
+    C_diag = tf.linalg.diag_part(C) 
+    Cof_C_diag = tf.linalg.diag_part(Cof_C) 
+    i7 = tf.reduce_sum(tf.square(C_diag), axis=1)
+    i11 = tf.reduce_sum(tf.square(Cof_C_diag), axis=1)
+    return tf.stack((i1, i2, j, i7, i11), axis=1)
+
+
 def get_hyperelastic_potential(F: tf.Tensor) -> tf.Tensor:
-    invariants = get_invariants(F)
+    invariants = get_transversely_isotropic_invariants(F)
 
     i1 = invariants[:, 0]
     j = invariants[:, 1]
@@ -54,7 +69,7 @@ def get_pinola_kirchhoff_stress(F: tf.Tensor) -> tf.Tensor:
 # %%
 def main() -> None:
     F = tf.eye(3, 3)
-    invs = get_invariants(F)
+    invs = get_transversely_isotropic_invariants(F)
     W = get_hyperelastic_potential(F)
     P= get_pinola_kirchhoff_stress(F)
     print(invs)
