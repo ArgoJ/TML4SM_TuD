@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 
-from .models import InputGradFFNN
+from .models import InputGradFFNN, set_use_output_and_derivative
 from .analytic_potential import get_C, get_C_features
 
 
@@ -21,17 +21,11 @@ def predict_multi_cases_naive(
     return P_labels, P_predictions
 
 
+@set_use_output_and_derivative
 def predict_multi_cases_PANN(
         model: InputGradFFNN, 
         FPW_tup: dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]],
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
-    set_back = False
-
-    if not model.use_output_and_derivative:
-        model.use_output_and_derivative = True
-        model.compile()
-        set_back = True
-
     W_labels = {}
     W_predictions = {}
 
@@ -45,29 +39,14 @@ def predict_multi_cases_PANN(
         
         W_predictions[name] = W_pred
         P_predictions[name] = P_pred.reshape((-1, 9))
-
-    if set_back:
-        model.use_output_and_derivative = False
-        model.compile()
     return P_labels, W_labels, P_predictions, W_predictions
 
 
-
+@set_use_output_and_derivative
 def predict_identity_F_PANN(model: InputGradFFNN):
     F_eye = tf.eye(3, 3, batch_shape=[1], dtype=tf.float32)
 
-    set_back = False
-
-    if not model.use_output_and_derivative:
-        model.use_output_and_derivative = True
-        model.compile()
-        set_back = True
-
     W_pred_eye, P_pred_eye  = model.predict(F_eye)
-
-    if set_back:
-        model.use_output_and_derivative = False
-        model.compile()
 
     print(f'P predicted: \n{P_pred_eye}')
     print(f'W predicted: \n{W_pred_eye}')

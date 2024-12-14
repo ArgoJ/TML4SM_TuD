@@ -16,9 +16,9 @@ def load_data(path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     df = load_df(path)
     F_batch, P_batch, W_batch = [], [], []
     for _, row in df.iterrows():
-        F = tf.constant(row.iloc[:9].to_numpy().reshape((3, 3)), dtype=tf.float32)
-        P = tf.constant(row.iloc[9:18].to_numpy().reshape((3, 3)), dtype=tf.float32)
-        W = tf.constant(row.iloc[-1:].to_numpy(), dtype=tf.float32)
+        F = tf.constant(row.iloc[:9].to_numpy(), dtype=tf.float32, shape=[3, 3])
+        P = tf.constant(row.iloc[9:18].to_numpy(), dtype=tf.float32, shape=[3, 3])
+        W = tf.constant(row.iloc[-1:].to_numpy(), dtype=tf.float32, shape=[1, ])
         F_batch.append(F)
         P_batch.append(P)
         W_batch.append(W)

@@ -46,13 +46,19 @@ def get_cubic_anisotropic_invariants(F: tf.Tensor) -> tf.Tensor:
 
 def get_polyconvex_inputs(F: tf.Tensor) -> tf.Tensor:
     det_F = tf.linalg.det(F)
-    Cof_F = det_F[:, None, None] * tf.linalg.inv(F)
-    return tf.stack((F, Cof_F, det_F), axis=1)
+    F_inv = tf.linalg.inv(F)
+    Cof_F = det_F[:, tf.newaxis, tf.newaxis] * F_inv
+    expand_det_F = tf.expand_dims(det_F, axis=1)
+    Cof_F_flat = tf.reshape(Cof_F, (-1, 9))
+    F_flat = tf.reshape(F, (-1, 9))
+    out = tf.concat((F_flat, Cof_F_flat, expand_det_F), axis=1)
+    return out 
 
 
 def cofactor(M: tf.Tensor) -> tf.Tensor:
     det_M = tf.linalg.det(M)
-    return det_M[:, None, None] * tf.linalg.inv(M)
+    M_inv = tf.linalg.inv(M)
+    return  det_M[:, tf.newaxis, tf.newaxis] * M_inv
 
 
 def get_hyperelastic_potential(F: tf.Tensor) -> tf.Tensor:

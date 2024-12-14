@@ -33,21 +33,7 @@ def get_scores(
     return scores
 
 
-import numpy as np
-
 def _r2_score(true: np.ndarray, pred: np.ndarray, use_total: bool = False) -> np.ndarray:
-    """
-    Compute the R² (coefficient of determination) score.
-
-    Args:
-        true (np.ndarray): Ground truth values.
-        pred (np.ndarray): Predicted values.
-        use_total (bool): If True, calculate a single R² score over all data points.
-                          If False, calculate R² scores for each dimension separately.
-
-    Returns:
-        np.ndarray: R² score. Scalar if `use_total` is True, otherwise a vector.
-    """
     if use_total:
         true_mean = np.mean(true)
         ss_total = np.sum((true - true_mean) ** 2)

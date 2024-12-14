@@ -1,9 +1,9 @@
 # %%   
 import tensorflow as tf
 
-from keras import layers, Model, Input, Sequential, constraints
+from keras import layers, Model, constraints
 from typing import Literal
-from abc import ABC
+from functools import wraps
 
 from .analytic_potential import (
     get_transversely_isotropic_invariants, 
@@ -41,10 +41,11 @@ class Layer_Sequence(layers.Layer):
             self.ls.append(layers.Dense(
                 num_neurons, 
                 activation, 
-                kernel_constraint=constraints.NonNeg if non_neg else None
+                kernel_constraint=constraints.NonNeg() if non_neg else None
             ))
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        tf.debugging.assert_rank(inputs, 2, message="Inputs should have rank 2 [batch_size, features]")
         x = inputs
         for layer in self.ls:
             x = layer(x)
@@ -63,8 +64,7 @@ class ICNN_Sequence(Layer_Sequence):
 
         # Default activations
         if activations is None:
-            activations = ['relu' for _ in range(len(hidden_sizes) - 1)]
-            activations.append('linear')
+            activations = ['relu'] * (len(hidden_sizes) - 1) + ['linear']
         assert all(activation in possible_activations for activation in activations), (
             f'Activations {activations} cannot be used for ICNN!'
             f'Only {possible_activations} are allowed.'
@@ -220,12 +220,36 @@ class DeformationICNN(InputGradFFNN):
             activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
         ) -> None:
 
-        super(CubicAnisoInvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
+        super(DeformationICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
 
-        self.polyconvex_inputs = Cubic_Anisotropic_Invariants_Layer()
+        self.polyconvex_inputs = Deformation_Layer()
         self.ls = ICNN_Sequence(hidden_sizes, activations)
 
     def _compute_output(self, inputs: tf.Tensor) -> tf.Tensor:
         polyconvex_inputs = self.polyconvex_inputs(inputs)
         out = self.ls(polyconvex_inputs)
         return out
+    
+
+
+
+
+def set_use_output_and_derivative(func):
+    @wraps(func)
+    def wrapper(model: InputGradFFNN, *args, **kwargs):
+        set_back = False
+
+        if not model.use_output_and_derivative:
+            model.use_output_and_derivative = True
+            model.compile()
+            set_back = True
+
+        result = func(model, *args, **kwargs)
+        
+        if set_back:
+            model.use_output_and_derivative = False
+            model.compile()
+        
+        return result
+    
+    return wrapper
