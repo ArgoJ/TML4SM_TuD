@@ -48,6 +48,7 @@ def plot_stress_predictions(
         predictions_dict: dict[str, np.ndarray] | None = None, 
         figsize: tuple[int, int] = (10, 8),
         colors: list[tuple] = CPS_COLORS,
+        markevery_label: int = 10
     ) -> None:
 
     fig, axs = plt.subplots(
@@ -66,12 +67,11 @@ def plot_stress_predictions(
         
         predictions = predictions_dict[name] if predictions_dict is not None else np.array([])
 
-        # iterate over label values
         for idx, (label_i, preds_i) in enumerate(zip_longest(labels.T, predictions.T, fillvalue=None)):
             ax1_idx = idx // 3
             ax2_idx = idx % 3
             ax: plt.Axes = axs[ax2_idx, ax1_idx]
-            true_line, = ax.plot(label_i, '.', lw=2, color=color, markevery=10)
+            true_line, = ax.plot(label_i, '.', lw=2, color=color, markevery=markevery_label)
             
             if preds_i is not None:
                 pred_line, = ax.plot(preds_i, '-', lw=2, color=color)

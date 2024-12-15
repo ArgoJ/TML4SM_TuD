@@ -2,6 +2,16 @@ import tensorflow as tf
 
 from .models import InputGradFFNN, set_use_output_and_derivative
 
+def is_rotation_matrix(Q: tf.Tensor, eps: float = 1e-6):
+    batch_size, n, _ = Q.shape
+    I = tf.eye(n, batch_shape=[batch_size], dtype=Q.dtype)
+    R_transpose = tf.transpose(Q, perm=[0, 2, 1])
+    R_transpose_R = tf.matmul(R_transpose, Q)
+    orthogonal = tf.reduce_all(tf.abs(R_transpose_R - I) < eps, axis=[1, 2])
+    det_R = tf.linalg.det(Q)
+    determinant_one = tf.abs(det_R - 1.0) < eps
+    return tf.reduce_all(tf.logical_and(orthogonal, determinant_one))
+
 
 def generate_random_rotation_matrix(batch_size: int, seed: int | None = None) -> tf.Tensor:
     if seed is not None:
@@ -13,6 +23,24 @@ def generate_random_rotation_matrix(batch_size: int, seed: int | None = None) ->
         orthogonal_matrices.append(q)
     return tf.stack(orthogonal_matrices, axis=0)
 
+
+def generate_augmented_dataset(
+        data: dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]], 
+        n_observers: int = 10
+) -> dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]]:
+    Q_batch = generate_random_rotation_matrix(n_observers)
+    if not is_rotation_matrix(Q_batch):
+        raise Exception('Not a correct rotation matrix!')
+    
+    augmented_data = {}
+    for name, (F, P, W) in data.items():
+        if not is_positive_definite(F):
+            print(f'Not a positive definite F provided in {name}!')
+        for idx_obs, Q in enumerate(Q_batch):
+            QF = Q * F
+            QP = Q * P
+            augmented_data[f'{name}_obs{idx_obs}'] = (QF, QP, W)
+    return augmented_data
 
 def generate_positive_definite_matrix(batch_size: int, seed: int | None = None) -> tf.Tensor:
     if seed is not None:
