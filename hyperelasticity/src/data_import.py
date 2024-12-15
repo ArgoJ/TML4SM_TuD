@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from typing import Callable, Literal
+
 from .analytic_potential import get_pinola_kirchhoff_stress, get_hyperelastic_potential, get_C_features
 
 
@@ -48,17 +50,41 @@ def load_invariants(path: os.PathLike) -> tf.Tensor:
     return tf.convert_to_tensor(data, dtype=tf.float32)
 
 
-def load_naive_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
-    F, P, _ = load_data(data_path)
+def get_naive_dataset(data: tuple[tf.Tensor, tf.Tensor, tf.Tensor]) -> tuple[tf.Tensor, tf.Tensor]:
+    F, P, _ = data
     features = get_C_features(F)
     labels = tf.reshape(P, (-1, 9))
     return features, labels
 
 
-def load_paml_dataset(data_path: os.PathLike) -> tuple[tf.Tensor, tf.Tensor]:
-    F, P, W = load_data(data_path)
+def get_pann_dataset(data: tuple[tf.Tensor, tf.Tensor, tf.Tensor], which_label: Literal['W', 'P', 'WP'] = 'P') -> tuple[tf.Tensor, tf.Tensor]:
+    F, P, W = data
     features = F
-    labels = tf.reshape(P, (-1, 9))
+    if which_label == 'P':
+        labels = P
+    elif which_label == 'W':
+        labels = W
+    elif which_label == 'WP':
+        labels = (W, P)
+    return features, labels
+
+
+def get_train_dataset(
+        data: dict[str, tuple], 
+        preprocess_data_func: Callable[[tuple[tf.Tensor, tf.Tensor, tf.Tensor]], tuple[tf.Tensor, tf.Tensor]], 
+        keys: list[str]
+) -> tuple[tf.Tensor, tf.Tensor]:
+    if len(keys) == 1:
+        return preprocess_data_func(data[keys[0]])
+    
+    new_data = {key: preprocess_data_func(tup) for key, tup in data.items() if key in keys}
+    features = tf.concat([new_data[key][0] for key in keys], axis=0)
+
+    label_len = len(next(iter(new_data.values()))[1])
+    if label_len > 1:
+        labels = [tf.concat([new_data[key][1][i] for key in keys], axis=0) for i in range(label_len)]
+    else:
+        labels = tf.concat([new_data[key][1] for key in keys], axis=0)
     return features, labels
 
 

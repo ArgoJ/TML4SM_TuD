@@ -2,26 +2,31 @@ import tensorflow as tf
 
 from .models import InputGradFFNN, set_use_output_and_derivative
 
-def is_rotation_matrix(Q: tf.Tensor, eps: float = 1e-6):
+def are_rotation_matrices(Q: tf.Tensor, eps: float = 1e-6):
+    Q = tf.cast(Q, tf.float64) 
     batch_size, n, _ = Q.shape
     I = tf.eye(n, batch_shape=[batch_size], dtype=Q.dtype)
-    R_transpose = tf.transpose(Q, perm=[0, 2, 1])
-    R_transpose_R = tf.matmul(R_transpose, Q)
-    orthogonal = tf.reduce_all(tf.abs(R_transpose_R - I) < eps, axis=[1, 2])
-    det_R = tf.linalg.det(Q)
-    determinant_one = tf.abs(det_R - 1.0) < eps
-    return tf.reduce_all(tf.logical_and(orthogonal, determinant_one))
+    Q_transpose = tf.transpose(Q, perm=[0, 2, 1])
+    Q_transpose_Q = tf.matmul(Q_transpose, Q)
+    orthogonal = tf.reduce_all(tf.abs(Q_transpose_Q - I) < eps, axis=[1, 2])
+    det_Q = tf.linalg.det(Q)
+    determinant_one = tf.abs(det_Q - 1.0) < eps
+    return tf.logical_and(orthogonal, determinant_one)
 
 
 def generate_random_rotation_matrix(batch_size: int, seed: int | None = None) -> tf.Tensor:
     if seed is not None:
         tf.random.set_seed(seed)
     random_matrices = tf.random.normal((batch_size, 3, 3))
-    orthogonal_matrices = []
-    for i in range(batch_size):
-        q, _ = tf.linalg.qr(random_matrices[i])
-        orthogonal_matrices.append(q)
-    return tf.stack(orthogonal_matrices, axis=0)
+    q, _ = tf.linalg.qr(random_matrices)
+    rot_mat_mask = are_rotation_matrices(q, eps=1e-7)
+
+    if tf.reduce_all(rot_mat_mask):
+        return q
+    else:
+        valid_q = tf.boolean_mask(q, rot_mat_mask)
+        new_q = generate_random_rotation_matrix(tf.math.count_nonzero(~rot_mat_mask))
+        return tf.concat([valid_q, new_q], axis=0)
 
 
 def generate_augmented_dataset(
@@ -29,9 +34,6 @@ def generate_augmented_dataset(
         n_observers: int = 10
 ) -> dict[str, tuple[tf.Tensor, tf.Tensor, tf.Tensor]]:
     Q_batch = generate_random_rotation_matrix(n_observers)
-    if not is_rotation_matrix(Q_batch):
-        raise Exception('Not a correct rotation matrix!')
-    
     augmented_data = {}
     for name, (F, P, W) in data.items():
         if not is_positive_definite(F):
@@ -71,7 +73,6 @@ def check_objectivity_condition(
     
     Q_matrices = generate_random_rotation_matrix(n_observers, seed)
     W_F, P_F = model(F)
-
     for Q in Q_matrices:
         QF = Q * F
         W_QF, P_QF = model(QF)

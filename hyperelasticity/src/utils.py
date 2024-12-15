@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from typing import Literal
 
@@ -66,5 +67,3 @@ def _weighted_mae(true: np.ndarray, pred: np.ndarray, use_total: bool=False) -> 
         return np.mean(weighted_errors) 
     else:
         return np.mean(weighted_errors, axis=0)
-
-

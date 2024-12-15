@@ -8,10 +8,11 @@ from itertools import zip_longest
 from .cps_colors import CPS_COLORS
 
 
-def plot_stress_currelation(
+def plot_stress_correlation(
         labels_dict: dict[str, np.ndarray], 
         predictions_dict: dict[str, np.ndarray], 
-        figsize: tuple[int, int] = (10, 8)
+        figsize: tuple[int, int] = (10, 8),
+        suptitle: str = ''
     ) -> None:
     if set(labels_dict.keys()) != set(predictions_dict.keys()):
         raise KeyError("Keys in labels_dict and predictions_dict must match.")
@@ -23,6 +24,8 @@ def plot_stress_currelation(
         3, 
         figsize=figsize
     )
+    if suptitle:
+        fig.suptitle(suptitle)
 
     for (name, labels), predictions, color in zip(labels_dict.items(), predictions_dict.values(), palette):
         for idx, (label_i, pred_i) in enumerate(zip_longest(labels.T, predictions.T, fillvalue=None)):
@@ -48,7 +51,8 @@ def plot_stress_predictions(
         predictions_dict: dict[str, np.ndarray] | None = None, 
         figsize: tuple[int, int] = (10, 8),
         colors: list[tuple] = CPS_COLORS,
-        markevery_label: int = 10
+        markevery_label: int = 10,
+        suptitle: str = ''
     ) -> None:
 
     fig, axs = plt.subplots(
@@ -57,6 +61,8 @@ def plot_stress_predictions(
         sharex='col', 
         figsize=figsize
     )
+    if suptitle:
+        fig.suptitle(suptitle)
 
     lines = []
     names = []
@@ -102,26 +108,37 @@ def plot_stress_predictions(
 
 def plot_energy_prediction(
         labels_dict: dict[str, np.ndarray], 
-        predictions_dict: dict[str, np.ndarray], 
+        predictions_dict: dict[str, np.ndarray] | None = None, 
         figsize: tuple[int, int] = (5, 3),
         colors: list[tuple] = CPS_COLORS,
+        markevery_label: int = 10,
+        suptitle: str = ''
     ) -> None:
 
     fig = plt.figure(figsize=figsize)
+    if suptitle:
+        fig.suptitle(suptitle)
     ax = fig.add_subplot(1, 1, 1)
 
     lines = []
     names = []
 
     for (name, labels), color in zip(labels_dict.items(), colors):
-        if name not in predictions_dict.keys():
+        if predictions_dict is not None and name not in predictions_dict.keys():
             raise KeyError(f'key {name} not in prediction dict!')
         
-        true_line, = ax.plot(labels, '.', lw=2, color=color, markevery=10)
-        pred_line, = ax.plot(predictions_dict[name], '-', lw=2, color=color)
+        predictions = predictions_dict[name] if predictions_dict is not None else None
 
-        lines.extend([true_line, pred_line])
-        names.extend([f'{name} Ground Truth', f'{name} Prediction'])
+        true_line, = ax.plot(labels, '.', lw=2, color=color, markevery=markevery_label)
+            
+        if predictions is not None:
+            pred_line, = ax.plot(predictions, '-', lw=2, color=color)
+
+        lines.append(true_line)
+        names.append(f'{name} Ground Truth')
+        if predictions_dict is not None:
+            lines.append(pred_line)
+            names.append(f'{name} Prediction')
 
     ax.set_ylabel(r'$W \, [\frac{N}{mm^2}]$')
     ax.set_xlabel(r'$t \, [s]$')
@@ -143,9 +160,12 @@ def plot_loss(
         loss: np.ndarray, 
         val_loss: np.ndarray | None = None, 
         figsize: tuple[int, int] = (7, 4),
+        suptitle: str = ''
     ) -> None:
 
     fig = plt.figure(figsize=figsize)
+    if suptitle:
+        fig.suptitle(suptitle)
     ax = fig.add_subplot(1, 1, 1)
     line, = ax.plot(loss, lw=1, label='Training')
 
@@ -164,13 +184,15 @@ def plot_loss(
 def plot_heatmap(
         score_values: np.ndarray,
         cbar_label: str, 
-        vmin=None,
-        vmax=None,
-        title=None,
+        vmin = None,
+        vmax = None,
+        suptitle: str = '',
         **subplot_kwargs
     ) -> None:
 
     fig, ax = plt.subplots(**subplot_kwargs)
+    if suptitle:
+        fig.suptitle(suptitle)
     cax = ax.matshow(score_values, cmap='coolwarm', vmin=vmin, vmax=vmax)
     plt.colorbar(cax, ax=ax, label=cbar_label)
     ax.set_title('$P_{i,j} [N]$')
@@ -188,8 +210,8 @@ def plot_heatmap(
     ax.yaxis.set_ticks_position('left')
     # ax.tick_params(axis='y', which='major', length=2)
 
-    if title is not None:
-        fig.suptitle(title)
+    if suptitle:
+        fig.suptitle(suptitle)
 
     fig.tight_layout()
     plt.show()
