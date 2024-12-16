@@ -4,6 +4,11 @@ import tensorflow as tf
 from typing import Literal
 
 
+
+def strings_containing_substrings(string_list: list[str], substring_list: list[str]) -> list[str]:
+    return [string for substring in substring_list for string in string_list if substring.lower() in string.lower()]
+
+
 def get_scores(
         labels: dict[str, np.ndarray], 
         predictions: dict[str, np.ndarray], 

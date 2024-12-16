@@ -11,6 +11,8 @@ from .analytic_potential import (
     get_polyconvex_inputs
 )
 
+ICNN_ACTIVATIONS = ['linear', 'softplus', 'relu']
+
 # %%
 class Layer_Sequence(layers.Layer):
     def __init__(
@@ -60,14 +62,13 @@ class ICNN_Sequence(Layer_Sequence):
             activations: list[Literal['linear', 'softplus', 'relu']] | None = None,
             **kwargs
         ) -> None:
-        possible_activations = ['linear', 'softplus', 'relu']
 
         # Default activations
         if activations is None:
             activations = ['relu'] * (len(hidden_sizes) - 1) + ['linear']
-        assert all(activation in possible_activations for activation in activations), (
+        assert all(activation in ICNN_ACTIVATIONS for activation in activations), (
             f'Activations {activations} cannot be used for ICNN!'
-            f'Only {possible_activations} are allowed.'
+            f'Only {ICNN_ACTIVATIONS} are allowed.'
         )
 
         non_negs = [False] + [True for _ in range(len(hidden_sizes)-1)]
@@ -174,6 +175,10 @@ class TransIsoInvariantsICNN(InputGradFFNN):
         ) -> None:
 
         super(TransIsoInvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
+        assert all(activation in ICNN_ACTIVATIONS for activation in activations), (
+            f'Activations {activations} cannot be used for ICNN!'
+            f'Only {ICNN_ACTIVATIONS} are allowed.'
+        )
         non_negs = [True for _ in range(len(hidden_sizes))]
 
         self.invariants_layer = Transversely_Isotropic_Invariants_Layer()
@@ -197,6 +202,10 @@ class CubicAnisoInvariantsICNN(InputGradFFNN):
         ) -> None:
 
         super(CubicAnisoInvariantsICNN, self).__init__(use_derivative=use_derivative, use_output_and_derivative=use_output_and_derivative)
+        assert all(activation in ICNN_ACTIVATIONS for activation in activations), (
+            f'Activations {activations} cannot be used for ICNN!'
+            f'Only {ICNN_ACTIVATIONS} are allowed.'
+        )
         non_negs = [True for _ in range(len(hidden_sizes))]
 
         self.invariants_layer = Cubic_Anisotropic_Invariants_Layer()
