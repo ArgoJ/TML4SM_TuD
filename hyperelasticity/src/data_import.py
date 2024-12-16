@@ -80,9 +80,8 @@ def get_train_dataset(
     new_data = {key: preprocess_data_func(tup) for key, tup in data.items() if key in keys}
     features = tf.concat([new_data[key][0] for key in keys], axis=0)
 
-    label_len = len(next(iter(new_data.values()))[1])
-    if label_len > 1:
-        labels = [tf.concat([new_data[key][1][i] for key in keys], axis=0) for i in range(label_len)]
+    if isinstance(next(iter(new_data.values()))[1], tuple):
+        labels = [tf.concat([new_data[key][1][i] for key in keys], axis=0) for i in range(2)]
     else:
         labels = tf.concat([new_data[key][1] for key in keys], axis=0)
     return features, labels
