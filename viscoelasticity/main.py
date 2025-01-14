@@ -57,7 +57,7 @@ model = hc.main()
 t1 = now()
 print(t1)
 
-tf.keras.backend.set_value(model.optimizer.learning_rate, 0.002)
+model.optimizer.learning_rate = 0.002
 h = model.fit([eps, dts], [sig], epochs = 100,  verbose = 2)
 
 t2 = now()
@@ -91,3 +91,5 @@ eps, eps_dot, sig, dts = ld.generate_data_relaxation(E_infty, E, eta, n, omegas,
 sig_m = model([eps, dts])
 lp.plot_data(eps, eps_dot, sig, omegas, As)
 lp.plot_model_pred(eps, sig, sig_m, omegas, As)
+
+# %%

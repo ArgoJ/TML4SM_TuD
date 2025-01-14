@@ -16,16 +16,16 @@ Import modules
 
 
 import tensorflow as tf
-from tensorflow.keras import layers
+from keras import layers, Model, Input
     
     
 
-class RNNCell(tf.keras.layers.Layer):
+class RNNCell(layers.Layer):
     
     def __init__(self, **kwargs):
         super(RNNCell, self).__init__(**kwargs)
-        self.state_size = [[1]]
-        self.output_size = [[1]]
+        self.state_size = 1
+        self.output_size = 1
      
         self.ls = [layers.Dense(32, 'softplus')]
         self.ls += [layers.Dense(2)]
@@ -37,8 +37,8 @@ class RNNCell(tf.keras.layers.Layer):
         
         #   n: current time step, N: old time step
                 
-        eps_n = inputs[0]
-        hs = inputs[1]
+        eps_n = inputs[:, :1]
+        hs = inputs[:, 1:2]
         
         #   gamma: history variable
         
@@ -68,21 +68,22 @@ class RNNCell(tf.keras.layers.Layer):
         return [tf.zeros([batch_size, 1])]
 
 
-def main(**kwargs):
+def main(**kwargs) -> Model:
     
     # define inputs
     
-    eps = tf.keras.Input(shape=[None, 1],name='input_eps')
-    hs = tf.keras.Input(shape=[None, 1], name='input_hs')
-        
+    eps = Input(shape=[None, 1],name='input_eps')
+    hs = Input(shape=[None, 1], name='input_hs')
+    concatenated_inputs = layers.Concatenate(axis=-1)([eps, hs])
+
     # define RNN cell
     
     cell = RNNCell()
     layer1 = layers.RNN(cell, return_sequences=True, return_state=False)
-    sigs = layer1((eps, hs))
+    sigs = layer1(concatenated_inputs)
 
 
-    model = tf.keras.Model([eps, hs], [sigs])
+    model = Model([eps, hs], [sigs])
     model.compile('adam', 'mse')
     return model
 
