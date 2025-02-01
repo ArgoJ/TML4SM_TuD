@@ -38,40 +38,39 @@ class SigmaLayer(layers.Layer):
         return sig_n
     
 
-class GammaRK4Layer(layers.Layer):
-    def __init__(
-            self, 
-            hidden_sizes: list[int], 
-            activations: list[Literal['linear', 'softplus', 'tanh', 'relu', 'sigmoid']] | None = None,
-            non_negs: list[bool] | None = None, 
-            **kwargs):
-        super(GammaRK4Layer, self).__init__(**kwargs)
-        self.f = Layer_Sequence(hidden_sizes, activations, non_negs, **kwargs)
-        self.concat = layers.Concatenate(axis=-1)
+# class GammaRK4Layer(layers.Layer):
+#     def __init__(
+#             self, 
+#             hidden_sizes: list[int], 
+#             activations: list[Literal['linear', 'softplus', 'tanh', 'relu', 'sigmoid']] | None = None,
+#             non_negs: list[bool] | None = None, 
+#             **kwargs):
+#         super(GammaRK4Layer, self).__init__(**kwargs)
+#         self.f = Layer_Sequence(hidden_sizes, activations, non_negs, **kwargs)
+#         self.concat = layers.Concatenate(axis=-1)
     
-    def call(self, inputs):
-        eps = inputs[:, :1]    # shape: (batch_size, 1)
-        dt = inputs[:, 1:2]    # shape: (batch_size, 1)
-        gamma = inputs[:, 2:3] # shape: (batch_size, 1)
+#     def call(self, inputs):
+#         eps = inputs[:, :1]    # shape: (batch_size, 1)
+#         dt = inputs[:, 1:2]    # shape: (batch_size, 1)
+#         gamma = inputs[:, 2:3] # shape: (batch_size, 1)
         
-        x1 = self.concat([eps, gamma])
-        k1 = dt * self.f(x1) * (eps - gamma)
+#         x1 = self.concat([eps, gamma])
+#         k1 = dt * self.f(x1) * (eps - gamma)
 
-        gamma_k1 = gamma + k1 * 0.5
-        x2 = self.concat([eps, gamma_k1])
-        k2 = dt * self.f(x2) * (eps - gamma_k1)
+#         gamma_k1 = gamma + k1 * 0.5
+#         x2 = self.concat([eps, gamma_k1])
+#         k2 = dt * self.f(x2) * (eps - gamma_k1)
 
-        gamma_k2 = gamma + k2 * 0.5
-        x3 = self.concat([eps, gamma_k2])
-        k3 = dt * self.f(x3) * (eps - gamma_k2)
+#         gamma_k2 = gamma + k2 * 0.5
+#         x3 = self.concat([eps, gamma_k2])
+#         k3 = dt * self.f(x3) * (eps - gamma_k2)
 
-        gamma_k3 = gamma + k3
-        x4 = self.concat([eps, gamma_k3])
-        k4 = dt * self.f(x4) * (eps - gamma_k3)
-        return gamma + (k1 + 2*k2 + 2*k3 + k4) / 6.0
+#         gamma_k3 = gamma + k3
+#         x4 = self.concat([eps, gamma_k3])
+#         k4 = dt * self.f(x4) * (eps - gamma_k3)
+#         return gamma + (k1 + 2*k2 + 2*k3 + k4) / 6.0
 
 
-    
 
 class GammaFFNNLayer(layers.Layer):
     def __init__(
@@ -85,12 +84,32 @@ class GammaFFNNLayer(layers.Layer):
         self.state_size = 1
         self.output_size = 1
         self.concat = layers.Concatenate(axis=-1)
-        self.rk4 = GammaRK4Layer(hidden_sizes, activations, non_negs, **kwargs)
+        # self.rk4 = GammaRK4Layer(hidden_sizes, activations, non_negs, **kwargs)
+        self.f = Layer_Sequence(hidden_sizes, activations, non_negs, **kwargs)
 
     def call(self, inputs, states):
-        gamma_old = states[0]
-        x = self.concat([inputs, gamma_old])
-        gamma_new = self.rk4(x)
+        gamma = states[0]
+        eps_n = inputs[:, :1]           # shape: (batch_size, 1)
+        eps_n_half = inputs[:, 1:2]     # shape: (batch_size, 1)
+        eps_n_one = inputs[:, 2:3]      # shape: (batch_size, 1)
+        dt = inputs[:, 3:4]             # shape: (batch_size, 1)
+        
+        x1 = self.concat([eps_n, gamma])
+        k1 = dt * self.f(x1) * (eps_n - gamma)
+
+        gamma_k1 = gamma + k1 * 0.5
+        x2 = self.concat([eps_n_half, gamma_k1])
+        k2 = dt * self.f(x2) * (eps_n_half - gamma_k1)
+
+        gamma_k2 = gamma + k2 * 0.5
+        x3 = self.concat([eps_n_half, gamma_k2])
+        k3 = dt * self.f(x3) * (eps_n_half - gamma_k2)
+
+        gamma_k3 = gamma + k3
+        x4 = self.concat([eps_n_one, gamma_k3])
+        k4 = dt * self.f(x4) * (eps_n_one - gamma_k3)
+        gamma_new = gamma + (k1 + 2*k2 + 2*k3 + k4) / 6.0
+
         return gamma_new, [gamma_new]
     
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
